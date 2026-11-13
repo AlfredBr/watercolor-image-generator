@@ -41,7 +41,20 @@ The x64 C# interface calls the native CUDA library through a small C ABI. GPU fa
 
 ## Verification and examples
 
-`samples/` contains nine generated PNG studies, including all five new themes, plus `theme-preview.jpg` for comparison. With Python and Pillow installed:
+Browse the [theme comparison preview](samples/theme-preview.jpg) or open an individual watercolor:
+
+- [Chromatic garden](samples/chromatic-garden.png)
+- [Wild botanical](samples/wild-botanical.png)
+- [Lilac & sea glass](samples/lilac-sea-glass.png)
+- [All-over color field](samples/color-field.png)
+- [Geometrics](samples/geometrics.png)
+- [Mondrian](samples/mondrian.png)
+- [Puddles](samples/puddles.png)
+- [Lines](samples/lines.png)
+- [Splatter](samples/splatter.png)
+- [Painting exported from the studio](samples/studio-export.png)
+
+Regenerate the nine sample studies with Python and Pillow installed:
 
 ```powershell
 python native/verify.py
