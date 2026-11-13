@@ -50,8 +50,7 @@ public sealed class MainWindow : Window
     readonly ProgressRing progress = new() { Width = 36, Height = 36, IsActive = false, Visibility = Visibility.Collapsed };
     readonly Button generate = new() { Content = "Paint something new  ↗", HorizontalAlignment = HorizontalAlignment.Stretch, Height = 46 };
     readonly Button save = new() { Content = "Export PNG", IsEnabled = false };
-    readonly Slider interval = new() { Minimum = 0, Maximum = 60, Value = 0, StepFrequency = 1, SmallChange = 1, LargeChange = 5, Width = 170, MinWidth = 0 };
-    readonly TextBlock intervalLabel = new() { Text = "Off", FontSize = 12, Width = 42, VerticalAlignment = VerticalAlignment.Center };
+    readonly Slider interval = new() { Minimum = 0, Maximum = 60, Value = 10, StepFrequency = 1, SmallChange = 1, LargeChange = 5 };
     readonly DispatcherTimer autoTimer = new();
     readonly Queue<int> galleryThemes = new();
     readonly Queue<int> galleryPalettes = new();
@@ -96,7 +95,7 @@ public sealed class MainWindow : Window
         }
         palette.SelectedIndex = 0;
         sidebar.Children.Add(Field("01 / COLOR STORY", palette));
-        foreach (string s in new[] { "Botanical bloom", "Floating ink & drips", "All-over color field", "Geometrics", "Mondrian", "Puddles", "Lines", "Splatter", "African-inspired", "Yin-yang", "Infinity", "Human Forms", "Möbius", "Planetary Systems", "Nebula", "Quilt", "Eyeball / Iris", "Leaves", "Flowers" }) composition.Items.Add(s);
+        foreach (string s in new[] { "Botanical bloom", "Floating ink & drips", "All-over color field", "Geometrics", "Mondrian", "Puddles", "Lines", "Splatter", "African-inspired", "Yin-yang", "Infinity", "Human Forms", "Möbius", "Planetary Systems", "Nebula", "Quilt", "Eyeball / Iris", "Leaves", "Flowers", "Vanishing Point", "Violent Storm", "City Nights" }) composition.Items.Add(s);
         composition.SelectedIndex = 0;
         sidebar.Children.Add(Field("02 / COMPOSITION", composition));
         var sliders = new StackPanel { Spacing = 9 };
@@ -122,11 +121,7 @@ public sealed class MainWindow : Window
         sidebar.Children.Add(repaint);
 
         var playback = new StackPanel { Spacing = 12, Padding = new Thickness(28, 16, 28, 24) };
-        var timing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        var autoLabel = Text("Auto", 12); autoLabel.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(autoLabel);
-        interval.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(interval);
-        timing.Children.Add(intervalLabel);
-        playback.Children.Add(timing);
+        playback.Children.Add(SliderField("Auto", interval, value => value <= 0 ? "Off" : $"{value:0} s"));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(interval, "Auto interval in seconds; zero disables Auto");
         ToolTipService.SetToolTip(interval, "0: Auto off. 1–60 seconds: random gallery of themes, colors, and materials.");
         save.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -152,7 +147,6 @@ public sealed class MainWindow : Window
         root.Loaded += async (_, _) => await Paint();
         interval.ValueChanged += (_, _) =>
         {
-            intervalLabel.Text = interval.Value <= 0 ? "Off" : $"{interval.Value:0} s";
             ScheduleAuto();
         };
         autoTimer.Tick += async (_, _) => { autoTimer.Stop(); await PaintNew(automatic: true); };
@@ -160,7 +154,8 @@ public sealed class MainWindow : Window
         {
             closed = true; autoTimer.Stop(); activeFade?.Stop(); fadeCompletion?.TrySetResult(false);
         };
-        _ = new WindowPlacementMemory(this);
+        _ = new WindowPlacementMemory(this, interval);
+        ScheduleAuto();
     }
 
     void ScheduleAuto()
@@ -182,12 +177,13 @@ public sealed class MainWindow : Window
     {
         var panel = new StackPanel { Spacing = 8 }; panel.Children.Add(Text(label, 11, "#717B72")); panel.Children.Add(child); return panel;
     }
-    static StackPanel SliderField(string label, Slider slider)
+    static StackPanel SliderField(string label, Slider slider, Func<double, string>? formatValue = null)
     {
         var p = new StackPanel { Spacing = 0 };
         var row = new Grid(); row.Children.Add(Text(label, 12));
-        var value = Text($"{slider.Value:0.00}", 11, "#7B847A"); value.HorizontalAlignment = HorizontalAlignment.Right; row.Children.Add(value);
-        slider.ValueChanged += (_, e) => value.Text = e.NewValue.ToString("0.00");
+        formatValue ??= value => value.ToString("0.00");
+        var value = Text(formatValue(slider.Value), 11, "#7B847A"); value.HorizontalAlignment = HorizontalAlignment.Right; row.Children.Add(value);
+        slider.ValueChanged += (_, e) => value.Text = formatValue(e.NewValue);
         p.Children.Add(row); p.Children.Add(slider); return p;
     }
     async Task ShowPainting(ImageSource source)

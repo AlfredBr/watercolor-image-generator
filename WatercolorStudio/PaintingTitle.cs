@@ -52,7 +52,10 @@ internal static class PaintingTitle
             ["Patchwork", "Stitched Memory", "Heirloom", "Quilted Garden", "Gathered Cloth", "Fabric of Dreams"],
             ["Gaze", "Watery Eye", "Inner Light", "Watching the Rain", "Iris", "Window Within"],
             ["Canopy", "Falling Leaves", "Leaf Dance", "Botanical Reverie", "Forest Letters", "Tender Branches"],
-            ["Bouquet", "Petal Song", "Floral Reverie", "Wildflower Waltz", "Garden Gathering", "Secret Blossoms"]
+            ["Bouquet", "Petal Song", "Floral Reverie", "Wildflower Waltz", "Garden Gathering", "Secret Blossoms"],
+            ["Vanishing Point", "Distant Passage", "Corridor of Light", "Perspective", "Receding Rooms", "Far Horizon"],
+            ["Tempest", "Thunderhead", "Squall", "Cloudburst", "Stormfront", "Lightning"],
+            ["Midnight City", "Neon Reflections", "City After Rain", "Night Windows", "Wet Pavements", "Urban Nocturne"]
         ];
         // The seed varies wording, while the subject and color come from this image.
         uint hash = unchecked((uint)settings.Seed * 2654435761u + (uint)dominant * 97u);

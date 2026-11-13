@@ -1,19 +1,22 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 
 namespace WatercolorStudio;
 
 internal sealed class WindowPlacementMemory
 {
     readonly Window window;
+    readonly Slider autoInterval;
     readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
     readonly string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Pigment", "window.json");
     bool restoring;
 
-    public WindowPlacementMemory(Window window)
+    public WindowPlacementMemory(Window window, Slider autoInterval)
     {
         this.window = window;
+        this.autoInterval = autoInterval;
         Restore();
         saveTimer.Tick += (_, _) => { saveTimer.Stop(); Save(); };
         window.AppWindow.Changed += (_, args) =>
@@ -23,6 +26,7 @@ internal sealed class WindowPlacementMemory
         };
         window.AppWindow.Closing += (_, _) => { saveTimer.Stop(); Save(); };
         window.Closed += (_, _) => saveTimer.Stop();
+        autoInterval.ValueChanged += (_, _) => { saveTimer.Stop(); saveTimer.Start(); };
     }
 
     void Restore()
@@ -31,6 +35,7 @@ internal sealed class WindowPlacementMemory
         {
             if (!File.Exists(path)) return;
             var saved = JsonSerializer.Deserialize<SavedPlacement>(File.ReadAllText(path));
+            if (saved?.AutoSeconds is double seconds && double.IsFinite(seconds)) autoInterval.Value = Math.Clamp(Math.Round(seconds), 0, 60);
             if (saved == null || saved.Right <= saved.Left || saved.Bottom <= saved.Top) return;
             var rect = new Rect { Left = saved.Left, Top = saved.Top, Right = saved.Right, Bottom = saved.Bottom };
             IntPtr monitor = MonitorFromRect(ref rect, 2); // Nearest connected monitor.
@@ -61,7 +66,8 @@ internal sealed class WindowPlacementMemory
             var saved = new SavedPlacement
             {
                 Left = rect.Left, Top = rect.Top, Right = rect.Right, Bottom = rect.Bottom,
-                Maximized = placement.ShowCommand == 3 || (placement.ShowCommand == 2 && (placement.Flags & 2) != 0)
+                Maximized = placement.ShowCommand == 3 || (placement.ShowCommand == 2 && (placement.Flags & 2) != 0),
+                AutoSeconds = autoInterval.Value
             };
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             string temporary = path + ".tmp";
@@ -71,7 +77,7 @@ internal sealed class WindowPlacementMemory
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
-    public sealed class SavedPlacement { public int Left { get; set; } public int Top { get; set; } public int Right { get; set; } public int Bottom { get; set; } public bool Maximized { get; set; } }
+    public sealed class SavedPlacement { public int Left { get; set; } public int Top { get; set; } public int Right { get; set; } public int Bottom { get; set; } public bool Maximized { get; set; } public double? AutoSeconds { get; set; } }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X, Y; }
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Placement { public uint Length, Flags, ShowCommand; public Point MinPosition, MaxPosition; public Rect NormalPosition; }

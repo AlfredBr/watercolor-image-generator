@@ -435,6 +435,98 @@ static std::vector<Dab> compose(Settings p) {
  auto transform=[&](float rotation,float tx,float ty) {
   for(size_t i=backgroundCount;i<d.size();i++){auto& a=d[i];float x=a.x,y=a.y;a.x=x*cosf(rotation)-y*sinf(rotation)+tx;a.y=x*sinf(rotation)+y*cosf(rotation)+ty;a.angle+=rotation;}
  };
+ if(p.style==20) {
+  int base=int(R()*7);float wind=.15f+R()*.15f;
+  add(0,0,asp*2.5f,2.5f,1.65f,base,Wash);d.back().c={.10f,.13f,.22f};
+  for(int i=0;i<32;i++) {
+   float x=(R()-.5f)*asp*1.3f,y=-.42f+R()*.4f,s=.12f+R()*.22f;
+   add(x,y,s*1.8f,s*.6f,.5f+R()*.65f,(base+i)%7,Wash,N()*.5f);
+   d.back().c={.08f+d.back().c.r*.22f,.10f+d.back().c.g*.22f,.14f+d.back().c.b*.23f};
+  }
+  add(0,.43f,asp,.12f,.45f,base,Wash);d.back().c={.08f,.12f,.16f};
+  for(int i=0;i<360;i++) {
+   float x=(R()-.5f)*asp*1.2f,y=R()-.5f,l=.018f+R()*.065f;
+   mark(x,y,x-wind*l,y+l,.00055f+R()*.0006f,.15f+R()*.25f,(base+2)%7);
+   d.back().kind=Star;d.back().c={.60f,.73f,.85f};
+  }
+  int bolts=2+int(R()*3);
+  for(int b=0;b<bolts;b++) {
+   float x=(R()-.5f)*asp*.85f,y=-.43f,endY=.10f+R()*.3f;
+   for(int j=0;j<10;j++) {
+    float nx=x+N()*.10f,ny=lerp(-.43f,endY,(j+1)/10.f);
+    mark(x,y,nx,ny,.007f,.18f,base);d.back().kind=GlowWash;d.back().c={.65f,.76f,1.f};
+    mark(x,y,nx,ny,.0018f,.95f,base);d.back().kind=Star;d.back().c={1.f,.98f,.9f};
+    if(j>2&&R()<.5f) {
+     float bx=nx+(R()<.5f?-1:1)*(.04f+R()*.10f),by=ny+.035f+R()*.06f;
+     mark(nx,ny,bx,by,.0008f,.8f,base);d.back().kind=Star;d.back().c={.87f,.91f,1.f};
+     mark(bx,by,bx+N()*.06f,by+.04f,.0006f,.65f,base);d.back().kind=Star;
+    }
+    x=nx;y=ny;
+   }
+   add(x,endY,.06f,.025f,.15f,base,GlowWash);d.back().c={.75f,.8f,1.f};
+  }
+  return d;
+ }
+ if(p.style==21) {
+  int base=int(R()*7),buildings=18+int(R()*13);float ground=.24f;
+  add(0,0,asp*2.5f,2.5f,2.f,base,Wash);d.back().c={.06f,.07f,.17f};
+  for(int i=0;i<10;i++)add((R()-.5f)*asp,-.25f+R()*.45f,.15f+R()*.15f,.1f,.10f,(base+i)%7,GlowWash);
+  for(int b=0;b<buildings;b++) {
+   float width=asp/buildings*(.65f+R()*.75f),x=(b/(buildings-1.f)-.5f)*asp;
+   float height=.09f+R()*.5f,y=ground-height*.5f;int color=(base+b)%7;
+   add(x,y,width*.5f,height*.5f,3.f,color,Panel,N()*.01f);d.back().c={.035f,.04f,.075f};
+   if(R()<.35f){mark(x,ground-height,x,ground-height-.025f-R()*.05f,.001f,1.f,color);d.back().c={.025f,.03f,.055f};}
+   int rows=std::max(1,int(height/.028f)),cols=width>.05f?3:2;
+   for(int row=0;row<rows;row++)for(int col=0;col<cols;col++) {
+    if(R()<.45f)continue;
+    float wx=x+(col/(cols-1.f)-.5f)*width*.6f,wy=ground-height+(row+.6f)*height/rows;
+    add(wx,wy,.0018f+width*.025f,.004f,.75f,color,Star);
+    d.back().c.r=.3f+.7f*d.back().c.r;d.back().c.g=.3f+.7f*d.back().c.g;d.back().c.b=.3f+.7f*d.back().c.b;
+   }
+   for(int k=0;k<3;k++) {
+    float rx=x+N()*width,ry=ground+.025f+R()*.2f;
+    add(rx,ry,width*.16f,.015f+R()*.06f,.12f+R()*.2f,color,GlowWash,N()*.04f);
+    if(k==0)add(rx,ground+.03f,width*.7f,.003f,.35f,color,GlowWash);
+   }
+   if(b%4==0)add(x,y,width*.1f,height*.35f,.35f,color,GlowWash);
+  }
+  float mx=(R()-.5f)*asp*.6f,my=-.34f-R()*.08f;
+  add(mx,my,.055f,.055f,.15f,base,GlowWash);d.back().c={.7f,.8f,1.f};
+  add(mx,my,.022f,.022f,1.3f,base,Star);d.back().c={.95f,.94f,.83f};
+  for(int i=0;i<70;i++){float x=(R()-.5f)*asp,y=ground+R()*.25f;mark(x,y,x+.03f+R()*.04f,y,.0008f,.25f,(base+i)%7);d.back().kind=GlowWash;}
+  return d;
+ }
+ if(p.style==19) {
+  float vx=N()*asp*.23f,vy=-.16f+R()*.20f;
+  int base=int(R()*7),rays=13+int(R()*11);
+  // A loose perspective corridor: every gesture recedes toward one common point.
+  for(int i=0;i<rays;i++) {
+   float angle=i*6.2831853f/rays+R()*.06f;
+   float reach=1.2f*std::max(asp,1.f),ex=vx+cosf(angle)*reach,ey=vy+sinf(angle)*reach;
+   float lastX=vx,lastY=vy;
+   for(int j=1;j<=15;j++) {
+    float t=j/15.f,x=lerp(vx,ex,t),y=lerp(vy,ey,t);
+    if(R()>.09f)mark(lastX,lastY,x,y,.0005f+.003f*t,.16f+.4f*t,(base+i)%7);
+    lastX=x;lastY=y;
+   }
+  }
+  for(int level=0;level<11;level++) {
+   float depth=powf((level+1)/11.f,2.1f),hw=asp*.72f*depth,hh=.62f*depth;
+   int color=(base+level/3)%7;
+   // Broken rectangular frames and glazed slabs reinforce the depth.
+   if(level%3==0)add(vx-hw*.7f,vy+hh*.8f,hw*.25f,hh*.12f,.17f,color,Panel,N()*.03f);
+   mark(vx-hw,vy-hh,vx+hw,vy-hh,.0006f+.0017f*depth,.4f,color);
+   mark(vx-hw,vy+hh,vx+hw,vy+hh,.0006f+.0017f*depth,.4f,color);
+   if(R()>.25f)mark(vx-hw,vy-hh,vx-hw,vy+hh,.0006f+.0017f*depth,.35f,color);
+   if(R()>.25f)mark(vx+hw,vy-hh,vx+hw,vy+hh,.0006f+.0017f*depth,.35f,color);
+  }
+  for(int i=0;i<4;i++) {
+   float s=.065f-i*.012f;
+   add(vx,vy,s,s,.16f,base,GlowWash);d.back().c={.97f,.94f,.83f};
+  }
+  scatter((int)(45*p.splatter),.006f);
+  return d;
+ }
  if(p.style==18) {
   int count=5+int(R()*7),base=int(R()*7);bool bouquet=R()<.6f;
   for(int f=0;f<count;f++) {
@@ -876,7 +968,7 @@ extern "C" __declspec(dllexport) int wc_device(char* name,int length) {
  cudaDeviceProp prop{};cudaGetDeviceProperties(&prop,0);snprintf(name,length,"CUDA · %s",prop.name);return 1;
 }
 extern "C" __declspec(dllexport) int wc_render(Settings p,unsigned char* output,char* error,int errorLength) {
- if(!output||p.width<1||p.height<1||p.width>8192||p.height>8192||p.palette<0||p.palette>10||p.style<0||p.style>18){snprintf(error,errorLength,"Invalid render settings");return -1;}
+ if(!output||p.width<1||p.height<1||p.width>8192||p.height>8192||p.palette<0||p.palette>10||p.style<0||p.style>21){snprintf(error,errorLength,"Invalid render settings");return -1;}
  auto d=compose(p);auto figures=makeFigures(p.seed);size_t bytes=(size_t)p.width*p.height*4;
  int count=0;cudaError_t e=cudaGetDeviceCount(&count);
  if(e==cudaSuccess&&count>0){

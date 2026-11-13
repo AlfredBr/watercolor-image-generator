@@ -15,7 +15,7 @@ print(name.value.decode())
 out = ROOT / 'samples'
 out.mkdir(exist_ok=True)
 fingerprints = set()
-for title, palette, style in [('chromatic-garden',0,0),('wild-botanical',1,0),('lilac-sea-glass',2,1),('color-field',0,2),('geometrics',7,3),('mondrian',7,4),('puddles',3,5),('lines',2,6),('splatter',0,7),('african-inspired',6,8),('yin-yang',3,9),('infinity',0,10),('human-forms',2,11),('mobius',3,12),('planetary-systems',5,13),('nebula',2,14),('quilt',7,15),('eyeball-iris',3,16),('sparkle-metallics',8,2),('leaves',1,17),('flowers',0,18),('grayscale',9,17),('sepia',10,18)]:
+for title, palette, style in [('chromatic-garden',0,0),('wild-botanical',1,0),('lilac-sea-glass',2,1),('color-field',0,2),('geometrics',7,3),('mondrian',7,4),('puddles',3,5),('lines',2,6),('splatter',0,7),('african-inspired',6,8),('yin-yang',3,9),('infinity',0,10),('human-forms',2,11),('mobius',3,12),('planetary-systems',5,13),('nebula',2,14),('quilt',7,15),('eyeball-iris',3,16),('sparkle-metallics',8,2),('leaves',1,17),('flowers',0,18),('grayscale',9,17),('sepia',10,18),('vanishing-point',3,19),('violent-storm',5,20),('city-nights',0,21)]:
     p = Settings(1200,900,48271,palette,style,.72,.85,.85,.85)
     buf = (c.c_ubyte * (p.width*p.height*4))()
     error = c.create_string_buffer(512)
