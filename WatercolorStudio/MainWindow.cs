@@ -50,11 +50,14 @@ public sealed class MainWindow : Window
     readonly ProgressRing progress = new() { Width = 36, Height = 36, IsActive = false, Visibility = Visibility.Collapsed };
     readonly Button generate = new() { Content = "Paint something new  ↗", HorizontalAlignment = HorizontalAlignment.Stretch, Height = 46 };
     readonly Button save = new() { Content = "Export PNG", IsEnabled = false };
-    readonly ToggleSwitch auto = new() { OnContent = "", OffContent = "", MinWidth = 0, Width = 44, VerticalAlignment = VerticalAlignment.Center };
-    readonly NumberBox interval = new() { Minimum = 1, Maximum = 3600, Value = 5, SmallChange = 1, Width = 72, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+    readonly Slider interval = new() { Minimum = 0, Maximum = 60, Value = 0, StepFrequency = 1, SmallChange = 1, LargeChange = 5, Width = 170, MinWidth = 0 };
+    readonly TextBlock intervalLabel = new() { Text = "Off", FontSize = 12, Width = 42, VerticalAlignment = VerticalAlignment.Center };
     readonly DispatcherTimer autoTimer = new();
+    readonly Queue<int> galleryThemes = new();
+    readonly Queue<int> galleryPalettes = new();
     byte[]? pixels;
     RenderSettings rendered;
+    string renderedTitle = "";
     bool busy;
     bool exporting;
     bool closed;
@@ -80,8 +83,9 @@ public sealed class MainWindow : Window
         sidebar.Children.Add(Text("A little water. A little wonder.", 13, "#6F7971"));
         sidebar.Children.Add(new Border { Height = 1, Background = Brush("#DCDDD2"), Margin = new Thickness(0, 0, 0, 0) });
 
-        string[] names = ["Chromatic garden", "Wild botanical", "Lilac & sea glass", "Tidal pools", "Apricot sunset", "After the rain", "Earth & ochre", "The whole rainbow"];
+        string[] names = ["Chromatic garden", "Wild botanical", "Lilac & sea glass", "Tidal pools", "Apricot sunset", "After the rain", "Earth & ochre", "The whole rainbow", "Sparkle & metallics", "Grayscale", "Sepia"];
         string[][] colors = [["#F91382", "#FF940B", "#10C2C4", "#8030CC", "#F5DA29"], ["#338D30", "#8AC72E", "#0A754C", "#BADE4A", "#59BA91"], ["#A130D1", "#D659D6", "#6B87D6", "#40D4C7", "#BF9CEB"], ["#0870AD", "#10B8C2", "#38A6C2", "#475096", "#69CFAD"], ["#F54A3D", "#FFA324", "#E3397A", "#A14AA6", "#FAC750"], ["#263D7D", "#61368F", "#148799", "#AD5299", "#5770B0"], ["#BF522E", "#D69C4A", "#637340", "#914D45", "#D6B57A"], ["#FF1440", "#FF7A05", "#F5D90A", "#1FAD42", "#0A9EDB", "#5438D4", "#CF1CA8"]];
+        colors = [.. colors, ["#F0B335", "#B3C4D4", "#D66E3B", "#E89C8A", "#197D7A", "#643B7D"], ["#191919", "#3B3B3B", "#5E5E5E", "#808080", "#A6A6A6", "#C7C7C7"], ["#3D2614", "#644021", "#855C33", "#A87D4A", "#C29E66", "#DBC088"]];
         for (int i = 0; i < names.Length; i++)
         {
             var item = new StackPanel { Spacing = 5, Padding = new Thickness(0, 3, 0, 3) };
@@ -92,7 +96,7 @@ public sealed class MainWindow : Window
         }
         palette.SelectedIndex = 0;
         sidebar.Children.Add(Field("01 / COLOR STORY", palette));
-        foreach (string s in new[] { "Botanical bloom", "Floating ink & drips", "All-over color field", "Geometrics", "Mondrian", "Puddles", "Lines", "Splatter" }) composition.Items.Add(s);
+        foreach (string s in new[] { "Botanical bloom", "Floating ink & drips", "All-over color field", "Geometrics", "Mondrian", "Puddles", "Lines", "Splatter", "African-inspired", "Yin-yang", "Infinity", "Human Forms", "Möbius", "Planetary Systems", "Nebula", "Quilt", "Eyeball / Iris", "Leaves", "Flowers" }) composition.Items.Add(s);
         composition.SelectedIndex = 0;
         sidebar.Children.Add(Field("02 / COMPOSITION", composition));
         var sliders = new StackPanel { Spacing = 9 };
@@ -120,14 +124,11 @@ public sealed class MainWindow : Window
         var playback = new StackPanel { Spacing = 12, Padding = new Thickness(28, 16, 28, 24) };
         var timing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         var autoLabel = Text("Auto", 12); autoLabel.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(autoLabel);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(auto, "Auto");
-        timing.Children.Add(auto);
-        var every = Text("Every", 12); every.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(every);
         interval.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(interval);
-        var seconds = Text("seconds", 12); seconds.VerticalAlignment = VerticalAlignment.Center; timing.Children.Add(seconds);
+        timing.Children.Add(intervalLabel);
         playback.Children.Add(timing);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(interval, "Auto interval in seconds");
-        ToolTipService.SetToolTip(interval, "Wait 1–3600 seconds between paintings. Export pauses Auto.");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(interval, "Auto interval in seconds; zero disables Auto");
+        ToolTipService.SetToolTip(interval, "0: Auto off. 1–60 seconds: random gallery of themes, colors, and materials.");
         save.HorizontalAlignment = HorizontalAlignment.Stretch;
         save.Click += async (_, _) => await Save(); playback.Children.Add(save);
         playback.Children.Add(Text("Every wash is a small, repeatable accident.\nAdjust the materials, then repaint.", 11, "#7B847A"));
@@ -149,10 +150,9 @@ public sealed class MainWindow : Window
         Grid.SetRow(mat, 1); stage.Children.Add(mat);
         var footer = new StackPanel { Spacing = 7 }; footer.Children.Add(caption); footer.Children.Add(status); Grid.SetRow(footer, 2); stage.Children.Add(footer);
         root.Loaded += async (_, _) => await Paint();
-        auto.Toggled += (_, _) => ScheduleAuto();
         interval.ValueChanged += (_, _) =>
         {
-            if (!double.IsFinite(interval.Value)) { interval.Value = 5; return; }
+            intervalLabel.Text = interval.Value <= 0 ? "Off" : $"{interval.Value:0} s";
             ScheduleAuto();
         };
         autoTimer.Tick += async (_, _) => { autoTimer.Stop(); await PaintNew(automatic: true); };
@@ -160,13 +160,14 @@ public sealed class MainWindow : Window
         {
             closed = true; autoTimer.Stop(); activeFade?.Stop(); fadeCompletion?.TrySetResult(false);
         };
+        _ = new WindowPlacementMemory(this);
     }
 
     void ScheduleAuto()
     {
         autoTimer.Stop();
-        if (closed || busy || exporting || !auto.IsOn) return;
-        autoTimer.Interval = TimeSpan.FromSeconds(double.IsFinite(interval.Value) ? Math.Clamp(interval.Value, 1, 3600) : 5);
+        if (closed || busy || exporting || interval.Value <= 0) return;
+        autoTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(interval.Value, 1, 60));
         autoTimer.Start();
     }
     async Task PaintNew(bool automatic = false)
@@ -238,11 +239,32 @@ public sealed class MainWindow : Window
         {
             int size = new[] { 1200, 2400, 3600 }[resolution.SelectedIndex];
             double ratio = new[] { 1.0, 4.0 / 3, 3.0 / 4, 16.0 / 9 }[format.SelectedIndex];
-            string compositionLabel = composition.SelectedItem?.ToString() ?? "";
             var p = new RenderSettings { Width = ratio >= 1 ? size : (int)(size * ratio), Height = ratio >= 1 ? (int)(size / ratio) : size, Seed = requestedSeed ?? (int)startingSeed, Palette = palette.SelectedIndex, Style = composition.SelectedIndex, Water = (float)water.Value, Pigment = (float)pigment.Value, Texture = (float)texture.Value, Splatter = (float)splatter.Value };
+            var startingSettings = p;
+            if (automatic)
+            {
+                p.Style = NextGalleryChoice(galleryThemes, composition.Items.Count, rendered.Style);
+                p.Palette = NextGalleryChoice(galleryPalettes, palette.Items.Count, rendered.Palette);
+                p.Water = RandomMaterial(water);
+                p.Pigment = RandomMaterial(pigment);
+                p.Texture = RandomMaterial(texture);
+                p.Splatter = RandomMaterial(splatter);
+            }
+            string compositionLabel = composition.Items[p.Style]?.ToString() ?? "";
             var data = new byte[p.Width * p.Height * 4]; var error = new StringBuilder(512); var device = new StringBuilder(256);
             var sw = Stopwatch.StartNew();
-            int result = await Task.Run(() => { Native.wc_device(device, 256); return Native.wc_render(p, data, error, 512); });
+            string paintingName = "";
+            int result = await Task.Run(() =>
+            {
+                Native.wc_device(device, 256);
+                int outcome = Native.wc_render(p, data, error, 512);
+                if (outcome >= 0)
+                {
+                    paintingName = PaintingTitle.Create(data, p);
+                    PaintingTitle.Draw(data, p.Width, p.Height, paintingName);
+                }
+                return outcome;
+            });
             if (closed) return;
             if (result < 0) throw new InvalidOperationException(error.ToString());
             var bitmap = new WriteableBitmap(p.Width, p.Height);
@@ -252,14 +274,26 @@ public sealed class MainWindow : Window
             double renderSeconds = sw.Elapsed.TotalSeconds;
             await ShowPainting(bitmap);
             if (closed) return;
-            pixels = data; rendered = p;
+            pixels = data; rendered = p; renderedTitle = paintingName;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(artwork, paintingName);
             if (seed.Value == startingSeed) seed.Value = p.Seed;
+            if (automatic)
+            {
+                // Publish the new recipe once, after the dissolve. Keep any edits
+                // the user made while the painting was being prepared.
+                if (composition.SelectedIndex == startingSettings.Style) composition.SelectedIndex = p.Style;
+                if (palette.SelectedIndex == startingSettings.Palette) palette.SelectedIndex = p.Palette;
+                if ((float)water.Value == startingSettings.Water) water.Value = p.Water;
+                if ((float)pigment.Value == startingSettings.Pigment) pigment.Value = p.Pigment;
+                if ((float)texture.Value == startingSettings.Texture) texture.Value = p.Texture;
+                if ((float)splatter.Value == startingSettings.Splatter) splatter.Value = p.Splatter;
+            }
             caption.Text = $"STUDY {p.Seed}     /     {p.Width} × {p.Height}     /     {compositionLabel}";
             status.Text = $"{(result == 1 ? device.ToString() : "CPU studio renderer")}    ·    {renderSeconds:0.00}s" + (error.Length > 0 ? $"    ·    {error}" : "");
         }
         catch (Exception ex)
         {
-            if (!closed) { auto.IsOn = false; status.Text = "The wash could not be rendered: " + ex.Message; }
+            if (!closed) { interval.Value = 0; status.Text = "The wash could not be rendered: " + ex.Message; }
         }
         finally
         {
@@ -272,15 +306,28 @@ public sealed class MainWindow : Window
             }
         }
     }
+    static float RandomMaterial(Slider slider) => (float)(slider.Minimum + Random.Shared.NextDouble() * (slider.Maximum - slider.Minimum));
+    static int NextGalleryChoice(Queue<int> bag, int count, int previous)
+    {
+        if (bag.Count == 0)
+        {
+            var choices = Enumerable.Range(0, count).ToArray();
+            Random.Shared.Shuffle(choices);
+            if (count > 1 && choices[0] == previous) (choices[0], choices[1]) = (choices[1], choices[0]);
+            foreach (int choice in choices) bag.Enqueue(choice);
+        }
+        return bag.Dequeue();
+    }
     async Task Save()
     {
         if (pixels == null || exporting || closed) return;
         exporting = true; autoTimer.Stop(); save.IsEnabled = false;
         var savedPixels = pixels;
         var savedSettings = rendered;
+        var savedTitle = renderedTitle;
         try
         {
-            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, SuggestedFileName = $"Pigment-{savedSettings.Seed}" };
+            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.PicturesLibrary, SuggestedFileName = $"{savedTitle} - {savedSettings.Seed}" };
             picker.FileTypeChoices.Add("PNG image", new List<string> { ".png" });
             WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
             StorageFile? file = await picker.PickSaveFileAsync(); if (file == null) return;

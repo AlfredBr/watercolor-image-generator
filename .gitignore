@@ -5,3 +5,5 @@ native/*.lib
 native/*.exp
 *.log
 .dotnet/
+samples/titled-*.bmp
+/.publish-checkout/
