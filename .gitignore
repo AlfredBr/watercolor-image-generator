@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+native/*.dll
+native/*.lib
+native/*.exp
+*.log
+.dotnet/
